@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/trakt/ratings.schema.json",
+  "title": "Trakt Ratings Distribution",
+  "description": "Aggregated rating distribution for a title.",
+  "type": "object",
+  "required": [
+    "rating",
+    "votes",
+    "distribution"
+  ],
+  "properties": {
+    "rating": {"type": ["number", "null"]},
+    "votes": {"type": "integer", "minimum": 0},
+    "distribution": {
+      "type": "object",
+      "patternProperties": {
+        "^([0-9]|10)$": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

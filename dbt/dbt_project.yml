@@ -1,0 +1,25 @@
+name: "trakt_review_pipeline"
+version: "0.1.0"
+config-version: 2
+
+profile: "trakt_duckdb"
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+
+models:
+  trakt_review_pipeline:
+    +materialized: view
+    bronze:
+      +schema: bronze
+      +materialized: incremental
+      +on_schema_change: append_new_columns
+    silver:
+      +schema: silver
+      +materialized: incremental
+    gold:
+      +schema: gold
+      +materialized: table

@@ -1,0 +1,26 @@
+# Core ingestion & orchestration
+dagster
+httpx
+pydantic
+python-dotenv
+structlog
+
+# Data & modeling
+duckdb
+pandas
+pyarrow
+dbt-core
+dbt-duckdb
+
+# Quality & testing
+pytest
+pytest-mock
+jsonschema
+
+# Observability & tooling
+openlineage-python
+rich
+
+# Synthetic replayer
+fastapi
+uvicorn
