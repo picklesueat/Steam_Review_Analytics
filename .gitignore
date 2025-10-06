@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+*.egg-info/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# dbt
+logs/
+target/
+dbt_packages/
+
+# Dagster
+storage/
+run_history/
+
+# Data artifacts
+/data/
+*.duckdb
+
+# Misc
+.DS_Store
