@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Iterator, Optional
 
 import httpx
 import structlog
@@ -19,19 +19,15 @@ SCHEMA_DIR = Path(__file__).parent / "schemas"
 
 
 class TraktClient:
-    """Thin wrapper around the Trakt API with pagination & retry handling.
-
-    This client is intentionally asyncio-friendly to support high-throughput
-    backfills and stress testing against the synthetic replayer.
-    """
+    """Thin wrapper around the Trakt API with pagination & retry handling."""
 
     def __init__(
         self,
         settings: Optional[TraktSettings] = None,
-        http_client: Optional[httpx.AsyncClient] = None,
+        http_client: Optional[httpx.Client] = None,
     ) -> None:
         self.settings = settings or TraktSettings()
-        self._client = http_client or httpx.AsyncClient(
+        self._client = http_client or httpx.Client(
             base_url=str(self.settings.base_url),
             headers={
                 "Content-Type": "application/json",
@@ -42,23 +38,25 @@ class TraktClient:
             timeout=httpx.Timeout(10.0, read=30.0),
         )
 
-    async def __aenter__(self) -> "TraktClient":  # pragma: no cover - syntactic sugar
+    def __enter__(self) -> "TraktClient":  # pragma: no cover - syntactic sugar
         return self
 
-    async def __aexit__(self, *exc_info: Any) -> None:  # pragma: no cover
-        await self.aclose()
+    def __exit__(self, *exc_info: Any) -> None:  # pragma: no cover
+        self.close()
 
-    async def aclose(self) -> None:
-        await self._client.aclose()
+    def close(self) -> None:
+        """Close the underlying HTTP client."""
 
-    async def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
+        self._client.close()
+
+    def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
         """Perform an HTTP GET with retry/backoff for 429 handling."""
 
         params = params or {}
         attempt = 0
         while True:
             attempt += 1
-            response = await self._client.get(path, params=params)
+            response = self._client.get(path, params=params)
             if response.status_code == 429 and attempt <= self.settings.max_retries:
                 retry_after = response.headers.get("Retry-After")
                 sleep_seconds = float(retry_after or (self.settings.backoff_seconds * attempt))
@@ -69,24 +67,24 @@ class TraktClient:
                     attempt=attempt,
                     sleep_seconds=sleep_seconds,
                 )
-                await asyncio.sleep(sleep_seconds)
+                time.sleep(sleep_seconds)
                 continue
             response.raise_for_status()
             return response
 
-    async def iter_comments(
+    def iter_comments(
         self,
         resource_path: str,
         params: Optional[Dict[str, Any]] = None,
         schema: Optional[Draft7Validator] = None,
         resume_state: Optional[PaginationState] = None,
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> Iterator[Dict[str, Any]]:
         """Iterate through comment pages, yielding validated payloads."""
 
         params = params or {}
         page = resume_state.page if resume_state else 1
         while True:
-            response = await self._get(resource_path, {**params, "page": page})
+            response = self._get(resource_path, {**params, "page": page})
             payload = response.json()
             if schema:
                 for item in payload:
@@ -98,14 +96,14 @@ class TraktClient:
                 yield comment
             page += 1
 
-    async def iter_ratings_distribution(
+    def iter_ratings_distribution(
         self,
         resource_path: str,
         schema: Optional[Draft7Validator] = None,
     ) -> Dict[str, Any]:
         """Return a ratings distribution snapshot for a title."""
 
-        response = await self._get(resource_path)
+        response = self._get(resource_path)
         payload = response.json()
         if schema:
             schema.validate(payload)

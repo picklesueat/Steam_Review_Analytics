@@ -1,20 +1,28 @@
 """Dagster job definitions for scheduled runs and backfills."""
 
-from dagster import Definitions, JobDefinition, ScheduleDefinition
+from dagster import Definitions, define_asset_job
 
-from ..assets import bronze_trakt_comments, stg_trakt__comment_event
+from ..assets import MOVIE_ID_PARTITIONS, bronze_trakt_comments
+from ..sensors import bronze_freshness_sensor
 
 
-def build_jobs() -> Definitions:  # pragma: no cover - placeholder
-    """Create Dagster job and schedule definitions."""
+def build_jobs() -> Definitions:
+    """Create Dagster job definitions for bronze backfills."""
 
-    daily_job = JobDefinition.from_graph(  # type: ignore[arg-type]
-        name="daily_trakt_ingestion",
-        graph_def=bronze_trakt_comments,
+    bronze_backfill = define_asset_job(
+        name="bronze_trakt_comments_backfill",
+        selection=[bronze_trakt_comments],
+        partitions_def=MOVIE_ID_PARTITIONS,
+        description=(
+            "Backfill Trakt comment payloads by movie id into local bronze storage."
+        ),
     )
-    schedule = ScheduleDefinition(
-        name="daily_trakt_ingestion_schedule",
-        cron_schedule="0 7 * * *",
-        job=daily_job,
+
+    return Definitions(
+        assets=[bronze_trakt_comments],
+        jobs=[bronze_backfill],
+        sensors=[bronze_freshness_sensor],
     )
-    return Definitions(jobs=[daily_job], schedules=[schedule], assets=[stg_trakt__comment_event])
+
+
+__all__ = ["build_jobs"]
