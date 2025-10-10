@@ -12,3 +12,6 @@ def bronze_freshness_sensor(context: SensorEvaluationContext):  # pragma: no cov
 
 
 BRONZE_FRESHNESS_POLICY = FreshnessPolicy(maximum_lag_minutes=180)
+
+
+__all__ = ["bronze_freshness_sensor", "BRONZE_FRESHNESS_POLICY"]
