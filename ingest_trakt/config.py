@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from pydantic import BaseSettings, Field, HttpUrl
+from pydantic import Field, HttpUrl
+from pydantic_settings import BaseSettings
 
 
 class TraktSettings(BaseSettings):

@@ -2,8 +2,7 @@
 
 from dagster import Definitions, define_asset_job
 
-from ..assets import MOVIE_ID_PARTITIONS, bronze_trakt_comments
-from ..sensors import bronze_freshness_sensor
+from .assets import MOVIE_ID_PARTITIONS, bronze_trakt_comments
 
 
 def build_jobs() -> Definitions:
@@ -21,7 +20,6 @@ def build_jobs() -> Definitions:
     return Definitions(
         assets=[bronze_trakt_comments],
         jobs=[bronze_backfill],
-        sensors=[bronze_freshness_sensor],
     )
 
 

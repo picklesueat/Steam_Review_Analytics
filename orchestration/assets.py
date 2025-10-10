@@ -20,7 +20,6 @@ from dagster import (
 from ingest_trakt.client import TraktClient
 from ingest_trakt.config import TraktSettings
 
-from ..sensors import BRONZE_FRESHNESS_POLICY
 
 LOGGER = structlog.get_logger()
 
@@ -70,9 +69,8 @@ def _write_jsonl(path: Path, payload: Iterable[dict]) -> int:
 @asset(
     group_name="bronze",
     partitions_def=MOVIE_ID_PARTITIONS,
-    freshness_policy=BRONZE_FRESHNESS_POLICY,
 )
-def bronze_trakt_comments(context: AssetExecutionContext) -> Output[str]:
+def bronze_trakt_comments(context) -> str:
     """Ingest Trakt comments for a single movie into local bronze storage."""
 
     partition_key = context.partition_key
