@@ -36,9 +36,7 @@ Each subtree includes a README or design document describing ownership and integ
 
 1. **Install prerequisites**
    * Python 3.11+
-   * [uv](https://github.com/astral-sh/uv) or `pip` for dependency management
-   * [dbt Core](https://docs.getdbt.com/docs/core) (DuckDB or Spark adapter) – recommended via virtual environment
-   * [Dagster](https://dagster.io/)
+      `pip` for dependency management
 
 2. **Clone & bootstrap**
 
