@@ -36,13 +36,11 @@ Each subtree includes a README or design document describing ownership and integ
 
 1. **Install prerequisites**
    * Python 3.11+
-      `pip` for dependency management
+   * `pip` for dependency management
 
 2. **Clone & bootstrap**
 
    ```bash
-   git clone https://github.com/<you>/movie_review_analytics_ETL.git
-   cd movie_review_analytics_ETL
    make dev-install
    ```
 
