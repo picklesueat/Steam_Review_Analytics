@@ -4,41 +4,38 @@ PYTHON ?= python3
 VENV ?= .venv
 
 help:
-@echo "Available targets:"
-@echo "  make dev-install  # Create virtual environment & install deps"
-@echo "  make lint         # Run static analysis (ruff/black/mypy)"
-@echo "  make format       # Auto-format Python code"
-@echo "  make test         # Execute unit tests & dbt tests"
-@echo "  make dbt-compile  # Compile dbt project"
-@echo "  make docs         # Build documentation previews"
+	@echo "Available targets:"
+	@echo "  make dev-install  # Create virtual environment & install deps"
+	@echo "  make lint         # Run static analysis (ruff/black/mypy)"
+	@echo "  make format       # Auto-format Python code"
+	@echo "  make test         # Execute unit tests & dbt tests"
+	@echo "  make dbt-compile  # Compile dbt project"
+	@echo "  make docs         # Build documentation previews"
 
 $(VENV)/bin/activate:
-@echo "Creating virtual environment in $(VENV)"
-$(PYTHON) -m venv $(VENV)
-$(VENV)/bin/pip install --upgrade pip
-$(VENV)/bin/pip install -r requirements.txt
+	@echo "Creating virtual environment in $(VENV)"
+	$(PYTHON) -m venv $(VENV)
+	$(VENV)/bin/pip install --upgrade pip
+	$(VENV)/bin/pip install -r requirements.txt
 
 dev-install: $(VENV)/bin/activate
-@echo "Environment ready. Activate with 'source $(VENV)/bin/activate'"
+	@echo "Environment ready. Activate with 'source $(VENV)/bin/activate'"
 
 lint: $(VENV)/bin/activate
-@echo "Running lint checks"
-$(VENV)/bin/ruff check ingest_trakt orchestration replayer
-$(VENV)/bin/black --check ingest_trakt orchestration replayer
-$(VENV)/bin/mypy ingest_trakt orchestration replayer || true
+	@echo "Running lint checks"
+	$(VENV)/bin/ruff check ingest_trakt orchestration replayer
+	$(VENV)/bin/black --check ingest_trakt orchestration replayer
+	$(VENV)/bin/mypy ingest_trakt orchestration replayer || true
 
 format: $(VENV)/bin/activate
-$(VENV)/bin/ruff check --fix ingest_trakt orchestration replayer
-$(VENV)/bin/black ingest_trakt orchestration replayer
-
-# Placeholder targets until implementation lands
+	$(VENV)/bin/ruff check --fix ingest_trakt orchestration replayer
+	$(VENV)/bin/black ingest_trakt orchestration replayer
 
 test:
-@echo "TODO: implement pytest + dbt test execution"
+	@echo "TODO: implement pytest + dbt test execution"
 
-# Example dbt command using DuckDB adapter (adjust as needed)
 dbt-compile:
-@echo "TODO: run 'dbt compile' once models are defined"
+	@echo "TODO: run 'dbt compile' once models are defined"
 
 docs:
-@echo "TODO: build docs (MkDocs/Sphinx/Notion sync)"
+	@echo "TODO: build docs (MkDocs/Sphinx/Notion sync)"
