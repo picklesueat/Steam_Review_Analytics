@@ -1,12 +1,15 @@
 # Synthetic API replayer
 
-The synthetic replayer mirrors Trakt's comment and rating distribution endpoints using recorded JSON responses. It enables reproducible load tests without hitting public APIs.
+The synthetic replayer mirrors Steam Store review endpoints using recorded JSON
+responses. It enables reproducible load tests without hitting public APIs.
 
 Components:
 
-* `app.py` – FastAPI application serving recorded payloads with controllable latency, error rates, and 429 storms.
+* `app.py` – FastAPI application serving recorded payloads with controllable
+  latency, error rates, and 429 storms.
 * `tests/` – Unit tests that validate pagination, backoff, and labeling logic.
-* `fixtures/` (planned) – Gzipped recordings captured from real API interactions.
+* `fixtures/` (planned) – Gzipped recordings captured from real API
+  interactions.
 
 Usage outline:
 
@@ -14,4 +17,6 @@ Usage outline:
 uvicorn replayer.app:app --reload
 ```
 
-Configure the connector with `TRAKT_BASE_URL=http://localhost:8000` and `SOURCE_SYSTEM=replay` to route traffic through the replayer during stress scenarios.
+Configure the connector with `STEAM_BASE_URL=http://localhost:8000` and
+`SOURCE_SYSTEM=replay` to route traffic through the replayer during stress
+scenarios.
