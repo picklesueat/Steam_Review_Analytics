@@ -22,7 +22,8 @@ storage/
 run_history/
 
 # Data artifacts
-/data/
+/data/*
+!/data/.gitkeep
 *.duckdb
 
 # Misc

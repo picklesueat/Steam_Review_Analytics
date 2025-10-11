@@ -22,14 +22,14 @@ dev-install: $(VENV)/bin/activate
 	@echo "Environment ready. Activate with 'source $(VENV)/bin/activate'"
 
 lint: $(VENV)/bin/activate
-	@echo "Running lint checks"
-	$(VENV)/bin/ruff check ingest_trakt orchestration replayer
-	$(VENV)/bin/black --check ingest_trakt orchestration replayer
-	$(VENV)/bin/mypy ingest_trakt orchestration replayer || true
+        @echo "Running lint checks"
+        $(VENV)/bin/ruff check ingest_steam pipelines replayer
+        $(VENV)/bin/black --check ingest_steam pipelines replayer
+        $(VENV)/bin/mypy ingest_steam pipelines replayer || true
 
 format: $(VENV)/bin/activate
-	$(VENV)/bin/ruff check --fix ingest_trakt orchestration replayer
-	$(VENV)/bin/black ingest_trakt orchestration replayer
+        $(VENV)/bin/ruff check --fix ingest_steam pipelines replayer
+        $(VENV)/bin/black ingest_steam pipelines replayer
 
 test:
 	@echo "TODO: implement pytest + dbt test execution"

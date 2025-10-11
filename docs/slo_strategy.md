@@ -1,22 +1,23 @@
 # SLO strategy
 
-The Trakt pipeline emphasizes freshness, completeness, and reliability to earn stakeholder trust.
+The Steam reviews pipeline emphasizes freshness, completeness, and reliability
+as it graduates from a manual POC into an automated platform.
 
 ## Service Level Objectives
 
-| SLO                          | Target              | Measurement                                    |
-| ---------------------------- | ------------------- | ----------------------------------------------- |
-| Bronze freshness             | 99% by 09:00 CT     | Time since last successful comment ingestion    |
-| Page completeness            | 99% daily           | Pages ingested ÷ expected pages per title       |
-| Incident response MTTR      | < 30 minutes        | Time from alert to mitigation for Sev1 issues   |
-| Gold query performance p95   | < 300 ms            | DuckDB/Spark query execution time post-tuning   |
+| SLO                        | Target              | Measurement                                      |
+| -------------------------- | ------------------- | ------------------------------------------------- |
+| Bronze freshness           | 99% by 09:00 CT     | Time since last successful Steam review landing   |
+| Page completeness          | 99% daily           | Pages ingested ÷ expected pages per app           |
+| Incident response MTTR     | < 30 minutes        | Time from alert to mitigation for Sev1 issues     |
+| Gold query performance p95 | < 300 ms            | DuckDB/Spark query execution time post-tuning     |
 
 ## Service Level Indicators
 
 * Freshness lag (minutes)
 * 429 error rate (per hour)
 * Retry success ratio
-* Late arrival rate (comments arriving >7 days late)
+* Late arrival rate (reviews arriving >7 days late)
 * Row-level duplicate rate (per incremental run)
 
 ## Alerting philosophy
@@ -31,8 +32,9 @@ The Trakt pipeline emphasizes freshness, completeness, and reliability to earn s
 * Spending >50% of budget triggers a change freeze until mitigations are deployed.
 * Document all spends in the incident postmortem template.
 
-## Tooling
+## Tooling (future state)
 
-* Dagster sensors emit metrics to Prometheus/Grafana dashboards.
+* Orchestration platform (Dagster/Prefect/Airflow) will emit metrics to
+  Prometheus/Grafana dashboards.
 * Elementary monitors dbt model freshness and test results.
 * OpenLineage captures lineage for traceability during incidents.
