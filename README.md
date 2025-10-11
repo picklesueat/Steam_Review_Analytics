@@ -55,8 +55,6 @@ orchestration, observability, and serving patterns.
 
    This command fetches up to two pages of reviews for the Steam app ID `620`
    (Portal 2) and writes them to `data/bronze/` as newline-delimited JSON files.
-   You can adjust sort order and filters using flags like
-   `--filter recent --review-type positive`.
 
 ## Development workflow
 

@@ -7,7 +7,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, Optional
-from urllib.parse import quote
 
 import httpx
 import structlog
@@ -75,7 +74,6 @@ class SteamReviewsClient:
         app_id: str | int,
         *,
         language: str = "all",
-        filter_type: str = "recent",
         review_type: str = "all",
         purchase_type: str = "all",
         max_pages: Optional[int] = None,
@@ -87,12 +85,10 @@ class SteamReviewsClient:
         cursor = resume_state.cursor if resume_state else "*"
         page = resume_state.page if resume_state else 1
         while True:
-            encoded_cursor = self._encode_cursor(cursor)
             params = {
                 "json": 1,
-                "cursor": encoded_cursor,
+                "cursor": cursor,
                 "language": language,
-                "filter": filter_type,
                 "review_type": review_type,
                 "purchase_type": purchase_type,
                 "num_per_page": self.settings.page_size,
@@ -127,14 +123,6 @@ class SteamReviewsClient:
             page += 1
             if max_pages is not None and page > max_pages:
                 break
-
-    @staticmethod
-    def _encode_cursor(cursor: str) -> str:
-        """Prepare a cursor string for use in query parameters."""
-
-        if cursor == "*":
-            return cursor
-        return quote(cursor, safe="")
 
     @staticmethod
     def _load_schema(schema_name: str) -> Draft7Validator:

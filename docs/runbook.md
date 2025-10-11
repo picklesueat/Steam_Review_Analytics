@@ -7,8 +7,6 @@
    ```bash
    python -m pipelines.steam_reviews_poc 620 1121560 --max-pages 2
    ```
-   Add flags such as `--filter recent` or `--review-type positive` to mirror
-   the Steam UI filters when needed.
 3. Confirm that JSONL files appear under `data/bronze/` with the current UTC
    timestamp.
 4. Inspect the most recent file and spot-check `fetched_at`, `cursor`, and

@@ -53,11 +53,6 @@ def parse_args() -> argparse.Namespace:
         help="Steam language filter (default: all languages).",
     )
     parser.add_argument(
-        "--filter",
-        default="recent",
-        help="Steam sort/filter option (e.g. recent, updated).",
-    )
-    parser.add_argument(
         "--review-type",
         default="all",
         help="Steam review_type filter (all, positive, negative).",
@@ -94,7 +89,6 @@ def run() -> None:
             reviews = client.iter_reviews(
                 app_id,
                 language=args.language,
-                filter_type=args.filter,
                 review_type=args.review_type,
                 purchase_type=args.purchase_type,
                 max_pages=args.max_pages,
