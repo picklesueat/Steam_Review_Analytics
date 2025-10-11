@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Steam Store Review",
+  "type": "object",
+  "required": [
+    "recommendationid",
+    "language",
+    "review",
+    "timestamp_created",
+    "timestamp_updated",
+    "voted_up",
+    "votes_up",
+    "votes_funny",
+    "weighted_vote_score",
+    "steam_purchase",
+    "received_for_free",
+    "written_during_early_access",
+    "author"
+  ],
+  "properties": {
+    "recommendationid": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "review": {
+      "type": "string"
+    },
+    "timestamp_created": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "timestamp_updated": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "voted_up": {
+      "type": "boolean"
+    },
+    "votes_up": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "votes_funny": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "weighted_vote_score": {
+      "type": ["string", "number"]
+    },
+    "comment_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "steam_purchase": {
+      "type": "boolean"
+    },
+    "received_for_free": {
+      "type": "boolean"
+    },
+    "written_during_early_access": {
+      "type": "boolean"
+    },
+    "playtime_at_review": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "author": {
+      "type": "object",
+      "required": [
+        "steamid",
+        "num_games_owned",
+        "num_reviews",
+        "playtime_forever"
+      ],
+      "properties": {
+        "steamid": {
+          "type": "string"
+        },
+        "num_games_owned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "num_reviews": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "playtime_forever": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "playtime_last_two_weeks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "playtime_at_review": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_played": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "app_id": {
+      "type": "string"
+    },
+    "page": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "cursor": {
+      "type": "string"
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

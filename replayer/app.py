@@ -1,4 +1,4 @@
-"""FastAPI app that replays recorded Trakt API responses."""
+"""FastAPI app that replays recorded Steam Store API responses."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException
 
-app = FastAPI(title="Trakt Replay Service", version="0.1.0")
+app = FastAPI(title="Steam Replay Service", version="0.1.0")
 
 RECORDINGS_DIR = Path(__file__).parent / "fixtures"
 

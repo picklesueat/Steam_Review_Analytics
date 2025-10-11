@@ -1,16 +1,13 @@
-# Trakt Review/Comment Analytics Pipeline
+# Steam Review Analytics Pipeline (Proof of Concept)
 
-This repository scaffolds a production-inspired analytics engineering and data engineering project that ingests public comment activity from [Trakt](https://trakt.tv/), models it into reliable dimensional marts, and publishes metrics that quantify engagement breadth, intensity, and durability for film and television titles.
+This repository bootstraps a production-inspired analytics engineering and data
+engineering project that ingests public review activity from the
+[Steam Store](https://store.steampowered.com/), models it into reliable
+marts, and publishes engagement metrics for PC games.
 
-The project is intentionally designed to exercise real-world DE/AE responsibilities:
-
-* **Custom ingestion** with pagination, rate limiting, and schema contracts.
-* **Lakehouse-friendly modeling** using a bronze → silver → gold layering strategy managed by dbt.
-* **Dagster orchestration** with backfill/resume workflows, SLO monitoring, and incident response playbooks.
-* **Governed semantic metrics** that can be reused across BI experiences.
-* **Observability, performance, and reliability** artifacts that translate into portfolio-ready STAR stories.
-
-> ℹ️  The repository currently ships with a structured scaffold so you can iterate feature-by-feature without reworking foundations. Each directory includes documentation stubs that explain intended responsibilities, dependencies, and next steps.
+The current milestone focuses on a **manual proof of concept** for fetching
+Steam reviews. Future iterations will layer in dbt models, automated
+orchestration, observability, and serving patterns.
 
 ## Repository layout
 
@@ -18,19 +15,18 @@ The project is intentionally designed to exercise real-world DE/AE responsibilit
 .
 ├── README.md                   # Project overview & quickstart
 ├── Makefile                    # Common developer tasks (lint, test, docs)
-├── requirements.txt            # Python dependencies (split by extras later)
-├── ingest_trakt/               # Connector package (API client, schemas, utils)
-├── orchestration/              # Dagster assets, jobs, and sensors
+├── requirements.txt            # Python dependencies for the POC
+├── ingest_steam/               # Connector package (API client, schemas, utils)
+├── pipelines/                  # Manually-triggered ingestion scripts
 ├── dbt/                        # dbt project (bronze/silver/gold models & metrics)
 ├── infra/                      # Infrastructure & IaC notes (Terraform, Docker)
-├── observability/              # Freshness/completeness dashboards, OpenLineage cfg
+├── observability/              # Freshness/completeness dashboards, lineage cfg
 ├── dash/                       # Analytics experience (Hex/Mode/Looker notebooks)
 ├── replayer/                   # Synthetic API replayer for stress/perf testing
 ├── notebooks/                  # Exploratory analyses & scratchpads
-└── docs/                       # Architecture, runbooks, SLO strategy, postmortems
+├── docs/                       # Architecture, runbooks, roadmap, SLO strategy
+└── data/                       # Local landing zone for ingested payloads
 ```
-
-Each subtree includes a README or design document describing ownership and integration points. Follow the roadmap in [`docs/roadmap.md`](docs/roadmap.md) to progress through the recommended milestones.
 
 ## Getting started
 
@@ -38,51 +34,68 @@ Each subtree includes a README or design document describing ownership and integ
    * Python 3.11+
    * `pip` for dependency management
 
-2. **Clone & bootstrap**
+2. **Create a virtual environment & install dependencies**
 
    ```bash
-   make dev-install
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
    ```
 
-3. **Configure secrets & environment**
-   * Copy `.env.example` (to be added) to `.env` with Trakt/TMDb credentials.
-   * Export `TRAKT_CLIENT_ID`, `TRAKT_CLIENT_SECRET`, and Dagster-related settings.
-   * For the synthetic replayer, set `TRAKT_BASE_URL=http://localhost:8000` to toggle replay mode.
+3. **Configure optional environment overrides**
+   * Copy `.env.example` (to be added) to `.env` to override defaults like
+     `STEAM_PAGE_SIZE` or `STEAM_USER_AGENT`.
+   * The Steam Store reviews endpoint does not require an API key.
 
-4. **Run initial checks**
+4. **Run the Steam review ingestion POC**
 
    ```bash
-   make lint
-   make test
-   make dbt-compile
+   python -m pipelines.steam_reviews_poc 620 --max-pages 2
    ```
 
-   These commands currently act as placeholders; implement them as functionality lands.
+   This command fetches up to two pages of reviews for the Steam app ID `620`
+   (Portal 2) and writes them to `data/bronze/` as newline-delimited JSON files.
+   You can adjust sort order and filters using flags like
+   `--filter recent --review-type positive`.
 
 ## Development workflow
 
-* **Ingestion** lives under [`ingest_trakt/`](ingest_trakt/). The `TraktClient` class encapsulates pagination, retries, and schema validation. Add JSON Schema definitions under `ingest_trakt/schemas/` and keep bronze landings append-only.
-* **Orchestration** assets under [`orchestration/`](orchestration/) define Dagster jobs for daily ingests, backfills, and sensors. Use asset dependencies to wire dbt run steps and set SLO monitors.
-* **Modeling** is managed by [`dbt/`](dbt/). Follow the bronze/silver/gold folder structure and declare metrics in YAML. Enable incremental models with idempotent merge strategies and `on_schema_change: append_new_columns`.
-* **Documentation & runbooks** are curated in [`docs/`](docs/). Update the architecture, SLO strategy, and incident templates as the system matures. These artifacts underpin portfolio storytelling.
+* **Ingestion** lives under [`ingest_steam/`](ingest_steam/). The
+  `SteamReviewsClient` class encapsulates pagination, retries, and schema
+  validation for the Steam Store reviews API.
+* **Manual pipelines** are kept in [`pipelines/`](pipelines/). The
+  `steam_reviews_poc.py` script demonstrates how to run the connector without a
+  scheduler. Future work will port this into an orchestrated workflow.
+* **Modeling** will be managed by [`dbt/`](dbt/). Follow the
+  bronze/silver/gold folder structure and declare metrics in YAML. Enable
+  incremental models with idempotent merge strategies.
+* **Documentation & runbooks** are curated in [`docs/`](docs/). Update the
+  architecture, SLO strategy, and incident templates as the system matures.
 
 ## Next steps
 
-1. Implement the Trakt connector with resilient pagination and rate-limit handling.
-2. Land bronze tables (comments, ratings distribution, optional TMDb metadata) using Delta/Iceberg or DuckDB for local development.
-3. Build dbt staging models with tests and begin tracking metrics in the semantic layer.
-4. Stand up Dagster orchestration with freshness sensors and incident alerting.
-5. Deliver observability dashboards, SLO reporting, and performance benchmarks.
+1. Harden the Steam connector with richer validation, testing, and retry
+   telemetry.
+2. Land bronze tables (reviews, query summaries) using DuckDB for local
+   development.
+3. Build dbt staging models with tests and begin tracking metrics in the
+   semantic layer.
+4. Introduce orchestration once the connector and models stabilize.
 
 ## Contributing
 
 Contributions should adhere to the following guidelines:
 
-* **Code style**: Use `ruff` + `black` for Python; enable type hints checked by `mypy` or `pyright` once dependencies settle.
-* **Testing**: Target ≥80% coverage on connector logic and dbt tests for every new model.
-* **Docs first**: Update relevant documentation alongside features (architecture diagrams, runbooks, dashboards).
-* **Reliability mindset**: Maintain idempotency, lineage, and SLO commitments across features.
+* **Code style**: Use `ruff` + `black` for Python; enable type hints checked by
+  `mypy` or `pyright` once dependencies settle.
+* **Testing**: Target ≥80% coverage on connector logic and dbt tests for every
+  new model.
+* **Docs first**: Update relevant documentation alongside features
+  (architecture diagrams, runbooks, dashboards).
+* **Reliability mindset**: Maintain idempotency, lineage, and SLO commitments
+  across features.
 
 ## License
 
-This project has not yet selected a license. Choose one (e.g., Apache 2.0 or MIT) before public release.
+This project has not yet selected a license. Choose one (e.g., Apache 2.0 or
+MIT) before public release.
