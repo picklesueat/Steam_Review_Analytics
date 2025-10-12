@@ -1,0 +1,7 @@
+steam_duckdb:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: data/warehouse/steam_reviews.duckdb
+      threads: 4
