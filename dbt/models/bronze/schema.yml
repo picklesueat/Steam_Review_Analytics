@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    description: Append-only Steam review ledger managed by the ingestion pipeline.
+    tables:
+      - name: steam_reviews_raw
+        description: |-
+          Raw JSON payloads captured from the Steam Store reviews API. Each row maps to
+          a single fetch with ingestion lineage columns for replay and auditing.
+        columns:
+          - name: recommendationid
+            description: Unique identifier for each review provided by Steam.
+          - name: appid
+            description: Steam application identifier for the reviewed game.
+          - name: updated_at
+            description: Upstream last-modified timestamp emitted by the API.
+          - name: ingested_at
+            description: Timestamp when the pipeline persisted the review to DuckDB.
+          - name: load_id
+            description: Ingestion run identifier (timestamped) shared by the batch.
+          - name: hash_payload
+            description: SHA-256 hash of the raw JSON payload for change detection.
+          - name: cursor
+            description: Steam pagination cursor used to retrieve the review.
+
+models:
+  - name: steam_reviews_raw
+    description: View exposing the Bronze ledger for downstream dbt models.
+    columns:
+      - name: recommendationid
+        description: Unique identifier for each review provided by Steam.
+        tests:
+          - not_null
+      - name: appid
+        description: Steam application identifier for the reviewed game.
+        tests:
+          - not_null
+      - name: payload
+        description: Original JSON payload as delivered by the Steam API.
+  - name: steam_reviews_raw_compacted
+    description: Latest version of each review payload by `(appid, recommendationid, hash_payload)`.
+    columns:
+      - name: recommendationid
+        description: Unique identifier for each review provided by Steam.
+        tests:
+          - not_null
+      - name: hash_payload
+        description: Content hash used to distinguish edits to the same review.
+        tests:
+          - not_null

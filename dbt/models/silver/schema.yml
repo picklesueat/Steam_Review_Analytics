@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: steam_reviews_enriched
+    description: |
+      Silver layer normalization of Steam review payloads with flattened
+      author attributes, typed timestamps, incremental MERGE semantics, and
+      lineage back to the Bronze ledger.
+    columns:
+      - name: recommendationid
+        description: Primary key for the Steam review event.
+        tests:
+          - not_null
+          - unique
+      - name: app_id
+        description: Steam application identifier associated with the review.
+        tests:
+          - not_null
+      - name: review_created_at
+        description: Timestamp when the review was originally submitted.
+        tests:
+          - not_null
+      - name: review_updated_at
+        description: Last modified timestamp for the review supplied by Steam.
+      - name: record_changed_at
+        description: Coalesced timestamp for incremental processing (updated/create/ingested).
+      - name: bronze_hash_payload
+        description: Hash of the raw JSON payload, used to detect review edits.
+      - name: bronze_load_id
+        description: Identifier of the ingestion batch that delivered the review snapshot.
+      - name: bronze_ingested_at
+        description: Timestamp when the Bronze layer appended the review.
+      - name: is_deleted
+        description: Soft-delete flag (reserved for future API tombstones).

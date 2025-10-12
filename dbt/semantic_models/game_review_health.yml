@@ -1,0 +1,67 @@
+version: 2
+
+semantic_models:
+  - name: game_review_health
+    model: ref('game_review_health_metrics')
+    defaults:
+      agg_time_dimension: snapshot_date
+    entities:
+      - name: app
+        type: primary
+        expr: app_id
+    dimensions:
+      - name: app_id
+        type: categorical
+        expr: app_id
+      - name: snapshot_date
+        type: time
+        type_params:
+          time_granularity: day
+          expr: snapshot_date
+    measures:
+      - name: hold_up_score
+        description: Hold-up score per game.
+        agg: average
+        expr: hold_up_score
+      - name: review_decay_ratio
+        description: Review decay ratio per game.
+        agg: average
+        expr: review_decay_ratio
+      - name: cult_popularity_score
+        description: Cult popularity score per game.
+        agg: average
+        expr: cult_popularity_score
+      - name: general_popularity_score
+        description: General popularity score per game.
+        agg: average
+        expr: general_popularity_score
+      - name: total_reviews
+        description: Total review count captured in the gold mart.
+        agg: max
+        expr: total_reviews
+
+metrics:
+  - name: hold_up_score
+    description: Change in positive review ratio between early and recent windows.
+    type: simple
+    label: Hold Up Score
+    type_params:
+      measure: hold_up_score
+  - name: review_decay_ratio
+    description: Ratio of review counts between recent and prior decay windows.
+    type: simple
+    label: Review Decay Ratio
+    type_params:
+      measure: review_decay_ratio
+  - name: cult_popularity_score
+    description: Helpful-vote weighted popularity adjusted for catalog reach.
+    type: simple
+    label: Cult Popularity Score
+    type_params:
+      measure: cult_popularity_score
+  - name: general_popularity_score
+    description: Broad popularity proxy based on total reviews and sentiment.
+    type: simple
+    label: General Popularity Score
+    type_params:
+      measure: general_popularity_score

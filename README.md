@@ -50,11 +50,16 @@ orchestration, observability, and serving patterns.
 4. **Run the Steam review ingestion POC**
 
    ```bash
-   python -m pipelines.steam_reviews_poc 620 --max-pages 2
+   python -m pipelines.steam_reviews_poc 620 --max-pages 2 --run-dbt --document-modeling
    ```
 
    This command fetches up to two pages of reviews for the Steam app ID `620`
-   (Portal 2) and writes them to `data/bronze/` as newline-delimited JSON files.
+   (Portal 2), writes them to `data/bronze/` as newline-delimited JSON files,
+   and appends the raw JSON into `bronze.steam_reviews_raw` inside the local
+   DuckDB warehouse with per-run `load_id`s and watermarks. Passing `--run-dbt`
+   materializes the bronze/silver/gold layers plus the semantic metrics overlay
+   and logs a summary of the medallion modeling stack.
+   Use `--warehouse-path` to point at an alternate DuckDB file if desired.
 
 ## Development workflow
 
@@ -64,9 +69,11 @@ orchestration, observability, and serving patterns.
 * **Manual pipelines** are kept in [`pipelines/`](pipelines/). The
   `steam_reviews_poc.py` script demonstrates how to run the connector without a
   scheduler. Future work will port this into an orchestrated workflow.
-* **Modeling** will be managed by [`dbt/`](dbt/). Follow the
-  bronze/silver/gold folder structure and declare metrics in YAML. Enable
-  incremental models with idempotent merge strategies.
+* **Modeling** lives in [`dbt/`](dbt/). The bronze view surfaces the append-only
+  DuckDB ledger, silver performs incremental MERGEs across a sliding window, and
+  gold aggregates review health metrics that feed the semantic layer metrics
+  (`hold_up_score`, `review_decay_ratio`, `cult_popularity_score`,
+  `general_popularity_score`).
 * **Documentation & runbooks** are curated in [`docs/`](docs/). Update the
   architecture, SLO strategy, and incident templates as the system matures.
 
