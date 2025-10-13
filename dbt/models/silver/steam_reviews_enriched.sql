@@ -1,7 +1,7 @@
 {{ config(
     materialized='incremental',
     unique_key='recommendationid',
-    incremental_strategy='merge',
+    incremental_strategy='delete+insert',
     on_schema_change='sync_all_columns'
 ) }}
 
@@ -15,11 +15,17 @@ with bronze as (
         hash_payload,
         cursor,
         payload
-    from {{ ref('steam_reviews_raw_compacted') }}
+    from {{ ref('steam_reviews_raw_compacted') }} src
     {% if is_incremental() %}
     where coalesce(updated_at, ingested_at) > (
         select coalesce(max(record_changed_at), timestamp '1970-01-01') from {{ this }}
     ) - interval '2 days'
+        OR not exists (
+        select 1
+        from {{ this }} t
+        where t.recommendationid = src.recommendationid
+          and t.app_id = src.appid     -- if target column is app_id; change to t.appid if not renamed
+    )
     {% endif %}
 ),
 normalized as (

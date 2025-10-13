@@ -11,7 +11,7 @@ with ranked as (
         cursor,
         payload,
         row_number() over (
-            partition by appid, recommendationid, hash_payload
+            partition by appid, recommendationid
             order by coalesce(updated_at, ingested_at) desc, ingested_at desc, load_id desc
         ) as row_num
     from {{ ref('steam_reviews_raw') }}

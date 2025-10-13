@@ -9,7 +9,6 @@ macro-paths: ["macros"]
 analysis-paths: ["analyses"]
 seed-paths: ["seeds"]
 test-paths: ["tests"]
-semantic-models-paths: ["semantic_models"]
 
 models:
   steam_review_analytics:
