@@ -28,6 +28,24 @@ orchestration, observability, and serving patterns.
 └── data/                       # Local landing zone for ingested payloads
 ```
 
+## Quick setup
+
+The fastest way to (re)start working on the project is to run the automated
+bootstrap target, then execute the proof-of-concept pipeline:
+
+```bash
+git clone https://github.com/<your-org>/movie_review_analytics_ETL.git
+cd movie_review_analytics_ETL
+make dev-install
+source .venv/bin/activate
+python -m pipelines.steam_reviews_poc 620 --max-pages 2 --run-dbt --document-modeling
+```
+
+`make dev-install` provisions/refreshes the `.venv` virtual environment and
+installs Python dependencies so that returning contributors can jump back in
+with a single command. Activate the environment with
+`source .venv/bin/activate` whenever you resume work in a new shell.
+
 ## Getting started
 
 1. **Install prerequisites**
@@ -41,6 +59,8 @@ orchestration, observability, and serving patterns.
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
+
+   Alternatively, run `make dev-install` to automate the above steps.
 
 3. **Configure optional environment overrides**
    * Copy `.env.example` (to be added) to `.env` to override defaults like
