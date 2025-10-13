@@ -26,6 +26,7 @@ LOGGER = structlog.get_logger()
 
 
 def positive_int(value: str) -> int:
+    """Validate that an argument value represents a positive integer."""
     try:
         parsed = int(value)
     except ValueError as exc:  # pragma: no cover - defensive
@@ -79,6 +80,7 @@ class Watermark:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for the Steam reviews ingestion utility."""
     parser = argparse.ArgumentParser(
         description="Fetch Steam Store reviews for one or more app IDs and write them to JSONL files.",
     )
@@ -146,6 +148,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def ensure_duckdb_available() -> None:
+    """Raise an error if DuckDB is not available in the current environment."""
     if duckdb is None:  # pragma: no cover - defensive
         raise RuntimeError(
             "duckdb Python package is required to persist the bronze table. Install it via `pip install duckdb`."
@@ -153,7 +156,7 @@ def ensure_duckdb_available() -> None:
 
 
 def prepare_bronze_storage(database_path: Path) -> "duckdb.DuckDBPyConnection":
-    """Open DuckDB and ensure bronze tables exist."""
+    """Create DuckDB schemas and tables that back the bronze storage layer."""
 
     ensure_duckdb_available()
     database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -188,11 +191,13 @@ def prepare_bronze_storage(database_path: Path) -> "duckdb.DuckDBPyConnection":
 
 
 def compute_hash(payload: dict[str, object]) -> str:
+    """Return a SHA-256 hash of a review payload for deduplication."""
     serialized = json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(serialized).hexdigest()
 
 
 def parse_review_timestamp(value: object) -> Optional[datetime]:
+    """Convert a Steam epoch timestamp to an aware ``datetime`` if possible."""
     if value is None:
         return None
     try:
@@ -208,6 +213,7 @@ def insert_into_bronze(
     load_id: str,
     ingested_at: datetime,
 ) -> None:
+    """Persist an individual review record into the bronze ledger table."""
     updated_at = parse_review_timestamp(review.get("timestamp_updated"))
     app_id = str(review.get("app_id")) if review.get("app_id") is not None else None
     recommendation_id = review.get("recommendationid")
@@ -238,6 +244,7 @@ def record_watermark(
     conn: "duckdb.DuckDBPyConnection",
     watermark: Watermark,
 ) -> None:
+    """Store ingestion progress metadata for an app ID in DuckDB."""
     conn.execute(
         """
         insert into bronze.load_watermarks (appid, load_id, cursor, max_updated_at, recorded_at)
@@ -263,6 +270,7 @@ def ingest_reviews(
     conn: Optional["duckdb.DuckDBPyConnection"],
     schema: object,
 ) -> Watermark:
+    """Fetch reviews for a single app, persist results, and emit a watermark."""
     timestamp = ingested_at.strftime("%Y%m%dT%H%M%SZ")
     output_path = args.output_dir / f"steam_reviews_{app_id}_{timestamp}.jsonl"
     review_iterable = client.iter_reviews(
@@ -309,6 +317,7 @@ def ingest_reviews(
 
 
 def run() -> None:
+    """Execute the end-to-end Steam reviews ingestion proof of concept."""
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -356,6 +365,7 @@ def run() -> None:
 
 
 def run_dbt(project_dir: Path, profiles_dir: Path | None) -> None:
+    """Invoke ``dbt build`` to materialize the medallion models."""
     command = ["dbt", "build", "--project-dir", str(project_dir)]
     if profiles_dir is not None:
         command += ["--profiles-dir", str(profiles_dir)]
