@@ -21,37 +21,28 @@ flow is orchestrated by dbt and produces three layers plus a semantic overlay:
 ## Silver – Normalized reviews
 
 * **Model**: `silver.steam_reviews_enriched` flattens JSON payloads, converts
-  Unix epochs to timestamps, and MERGEs into an incremental table keyed by
+  Unix epochs to timestamps, and materializes as a table keyed by
   `recommendationid`.
-* **Incremental window**: Only Bronze rows whose `updated_at` (or `ingested_at`
-  fallback) exceeds the existing table watermark minus two days are processed.
-  This sliding window captures late-arriving updates without rescanning the
-  entire ledger.
 * **Lineage**: Bronze metadata (`hash_payload`, `load_id`, `ingested_at`) is
   preserved for debugging and delete detection (future work toggles `is_deleted`
   when the API surfaces tombstones).
 
-## Gold – Game review health mart
+## Gold – Adaptive review metrics
 
-* **Model**: `gold.game_review_health_metrics` aggregates Silver into per-game
-  metrics with `record_changed_at` and a derived daily `snapshot_date` for
-  incremental rollups.
+* **Model**: `gold.fct_steam_review_metrics_adaptive` aggregates Silver into per-game
+  metrics with `record_changed_at` and a derived daily `snapshot_date` for lineage.
 * **Metrics**:
-  * **Hold-up score** – Change in positive review ratio between the first 180
-    days of reviews and the most recent 180 days (configurable).
-  * **Review decay ratio** – Ratio of review counts in the most recent 90 days
-    versus the prior 90-day window. Values below 1 highlight faster decay.
-  * **Cult popularity score** – Helpful-vote weighted signal adjusted for
-    catalog reach (`avg helpful votes × lifetime positive ratio ÷ ln(total reviews + 2)`).
-  * **General popularity score** – Broad reach proxy using
-    `total reviews × lifetime positive ratio`.
+  * **avg_rating** – Lifetime positivity (share of thumbs-up) in the range [0,1].
+  * **edp_current** – Exponentially decayed positivity that emphasizes the latest sentiment.
+  * **decay_ewrr** – Exponentially weighted rate ratio capturing popularity momentum (>1 rising).
+  * **cult_score** – Lifetime positivity divided by `log1p(total_reviews)` to surface niche hits.
 
 ## Semantic layer
 
-`semantic_models/game_review_health.yml` defines a MetricFlow semantic model that
-exposes the four key metrics directly from the Gold table with a daily time
-dimension. BI tools can query `hold_up_score`, `review_decay_ratio`,
-`cult_popularity_score`, and `general_popularity_score` without hand-writing SQL.
+`semantic_models/steam_review_metrics_adaptive.yml` defines a MetricFlow semantic model that
+exposes the adaptive review metrics directly from the Gold table with a daily time
+dimension. BI tools can query `avg_rating`, `edp_current`, `decay_ewrr`, and `cult_score`
+without hand-writing SQL.
 
 ## DuckDB configuration
 
