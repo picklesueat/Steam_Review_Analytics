@@ -1,0 +1,67 @@
+version: 2
+
+semantic_models:
+  - name: steam_review_metrics_adaptive
+    model: ref('fct_steam_review_metrics_adaptive')
+    defaults:
+      agg_time_dimension: snapshot_date
+    entities:
+      - name: app
+        type: primary
+        expr: app_id
+    dimensions:
+      - name: app_id
+        type: categorical
+        expr: app_id
+      - name: snapshot_date
+        type: time
+        type_params:
+          time_granularity: day
+          expr: snapshot_date
+    measures:
+      - name: avg_rating
+        description: Lifetime positivity ratio per app.
+        agg: average
+        expr: avg_rating
+      - name: edp_current
+        description: Exponentially decayed positivity emphasizing recent sentiment.
+        agg: average
+        expr: edp_current
+      - name: decay_ewrr
+        description: Exponentially weighted rate ratio capturing popularity momentum.
+        agg: average
+        expr: decay_ewrr
+      - name: cult_score
+        description: Cult score balancing positivity against review volume.
+        agg: average
+        expr: cult_score
+      - name: total_reviews
+        description: Total review volume backing the metrics.
+        agg: max
+        expr: total_reviews
+
+metrics:
+  - name: avg_rating
+    description: Lifetime positivity ratio across all reviews.
+    type: simple
+    label: Average Rating
+    type_params:
+      measure: avg_rating
+  - name: edp_current
+    description: Exponentially decayed positivity emphasizing recent sentiment.
+    type: simple
+    label: EDP Current
+    type_params:
+      measure: edp_current
+  - name: decay_ewrr
+    description: Exponentially weighted rate ratio capturing popularity momentum (>1 rising).
+    type: simple
+    label: Decay EWRR
+    type_params:
+      measure: decay_ewrr
+  - name: cult_score
+    description: Cult indicator balancing positivity against log review volume.
+    type: simple
+    label: Cult Score
+    type_params:
+      measure: cult_score

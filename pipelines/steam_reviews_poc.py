@@ -45,27 +45,22 @@ MEDALLION_MODELING_OVERVIEW = textwrap.dedent(
       retained on disk for replay while the warehouse table mirrors one row per fetch.
       A compacted view (`bronze.steam_reviews_raw_compacted`) keeps the latest copy of
       each `(appid, recommendationid, hash_payload)` trio for downstream normalization.
-    • Silver (`silver.steam_reviews_enriched`): Incremental MERGE that flattens JSON,
-      converts epochs to timestamps, and processes only reviews whose `updated_at`
-      values fall inside a two-day sliding window beyond the table watermark. Changes
-      overwrite prior versions, optional columns track Bronze lineage, and soft delete
-      flags are ready for future API tombstone support.
-    • Gold (`gold.game_review_health_metrics`): Aggregates Silver into per-game health
-      metrics, capturing hold-up deltas, review decay, and popularity heuristics while
-      surfacing `record_changed_at` for incremental rollups.
-    • Semantic layer: MetricFlow semantic model exposes `hold_up_score`,
-      `review_decay_ratio`, `cult_popularity_score`, and `general_popularity_score`
-      metrics for BI consumption directly from the Gold table.
+    • Silver (`silver.steam_reviews_enriched`): Table that flattens JSON, converts epochs
+      to timestamps, and preserves Bronze lineage for each review. Soft delete flags are
+      ready for future API tombstone support.
+    • Gold (`gold.fct_steam_review_metrics_adaptive`): Aggregates Silver into adaptive
+      review metrics covering lifetime positivity, exponentially decayed sentiment,
+      popularity momentum, and a cult score while surfacing `record_changed_at` for lineage.
+    • Semantic layer: MetricFlow semantic model exposes `avg_rating`, `edp_current`,
+      `decay_ewrr`, and `cult_score` metrics for BI consumption directly from the Gold table.
 
     Orchestration steps:\n
     1. Ingest API → append JSON to disk and `bronze.steam_reviews_raw` with run-scoped
        `load_id`, advancing cursors and recording `(last_cursor, max(updated_at))` per
        app for replay watermarks.
-    2. dbt Silver → incremental MERGE across the sliding window using Bronze
-       `updated_at` (fallback to `ingested_at`) so only new or edited reviews are
-       processed.
-    3. dbt Gold/Semantic layer → recompute review-health rollups and refresh exposed
-       metrics.
+    2. dbt Silver → materialize the enriched review table and keep Bronze lineage intact.
+    3. dbt Gold/Semantic layer → recompute adaptive review metrics and refresh exposed
+       semantic layer measures.
     """
 )
 

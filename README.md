@@ -19,11 +19,7 @@ orchestration, observability, and serving patterns.
 ├── ingest_steam/               # Connector package (API client, schemas, utils)
 ├── pipelines/                  # Manually-triggered ingestion scripts
 ├── dbt/                        # dbt project (bronze/silver/gold models & metrics)
-├── infra/                      # Infrastructure & IaC notes (Terraform, Docker)
 ├── observability/              # Freshness/completeness dashboards, lineage cfg
-├── dash/                       # Analytics experience (Hex/Mode/Looker notebooks)
-├── replayer/                   # Synthetic API replayer for stress/perf testing
-├── notebooks/                  # Exploratory analyses & scratchpads
 ├── docs/                       # Architecture, runbooks, roadmap, SLO strategy
 └── data/                       # Local landing zone for ingested payloads
 ```
@@ -90,10 +86,9 @@ with a single command. Activate the environment with
   `steam_reviews_poc.py` script demonstrates how to run the connector without a
   scheduler. Future work will port this into an orchestrated workflow.
 * **Modeling** lives in [`dbt/`](dbt/). The bronze view surfaces the append-only
-  DuckDB ledger, silver performs incremental MERGEs across a sliding window, and
-  gold aggregates review health metrics that feed the semantic layer metrics
-  (`hold_up_score`, `review_decay_ratio`, `cult_popularity_score`,
-  `general_popularity_score`).
+  DuckDB ledger, silver materializes a table with normalized review attributes,
+  and gold aggregates adaptive review metrics (`avg_rating`, `edp_current`,
+  `decay_ewrr`, `cult_score`) that the semantic layer exposes.
 * **Documentation & runbooks** are curated in [`docs/`](docs/). Update the
   architecture, SLO strategy, and incident templates as the system matures.
 

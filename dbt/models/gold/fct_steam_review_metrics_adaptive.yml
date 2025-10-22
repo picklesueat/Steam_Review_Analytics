@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: fct_steam_review_metrics_adaptive
+    description: |
+      Adaptive review metrics per Steam app, combining lifetime positivity,
+      exponentially decayed sentiment, popularity momentum, and a cult score.
+    columns:
+      - name: app_id
+        description: Steam application identifier.
+        tests:
+          - not_null
+          - unique
+      - name: first_review_at
+        description: Timestamp of the first observed review for the app.
+      - name: latest_review_at
+        description: Timestamp of the most recent observed review for the app.
+      - name: latest_review_updated_at
+        description: Timestamp of the most recent review update received.
+      - name: record_changed_at
+        description: Latest change timestamp drawn from upstream Silver data.
+      - name: snapshot_date
+        description: Daily grain derived from `record_changed_at` for lineage and snapshots.
+      - name: total_reviews
+        description: Total number of reviews observed for the app.
+      - name: avg_rating
+        description: Lifetime positivity ratio across all reviews.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: edp_current
+        description: Exponentially decayed positivity emphasizing recent sentiment.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: decay_ewrr
+        description: Exponentially weighted rate ratio capturing popularity momentum.
+      - name: cult_score
+        description: Lifetime positivity scaled by log review volume to surface niche hits.
+      - name: half_life_short_days
+        description: Adaptive short half-life used for popularity momentum.
+      - name: half_life_long_days
+        description: Adaptive long half-life used for popularity momentum.
+      - name: half_life_pos_days
+        description: Adaptive half-life used for sentiment decay.
