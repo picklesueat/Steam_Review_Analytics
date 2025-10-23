@@ -10,9 +10,9 @@ import textwrap
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-import structlog
+from prefect import flow, get_run_logger, task
 
 from ingest_steam.client import SteamReviewsClient
 from ingest_steam.config import SteamSettings
@@ -21,9 +21,6 @@ try:
     import duckdb
 except ImportError:  # pragma: no cover - runtime dependency
     duckdb = None  # type: ignore[assignment]
-
-LOGGER = structlog.get_logger()
-
 
 def positive_int(value: str) -> int:
     """Validate that an argument value represents a positive integer."""
@@ -72,6 +69,23 @@ class Watermark:
     max_updated_at: Optional[datetime]
     load_id: str
     recorded_at: datetime
+
+
+@dataclass
+class PipelineConfig:
+    """Serializable configuration passed into the Prefect flow."""
+
+    app_ids: list[str]
+    output_dir: Path
+    max_pages: int
+    language: str
+    review_type: str
+    purchase_type: str
+    run_dbt: bool
+    warehouse_path: Optional[Path]
+    dbt_project_dir: Path
+    dbt_profiles_dir: Optional[Path]
+    document_modeling: bool
 
 
 def parse_args() -> argparse.Namespace:
@@ -150,39 +164,41 @@ def ensure_duckdb_available() -> None:
         )
 
 
-def prepare_bronze_storage(database_path: Path) -> "duckdb.DuckDBPyConnection":
+def prepare_bronze_storage(database_path: Path) -> None:
     """Create DuckDB schemas and tables that back the bronze storage layer."""
 
     ensure_duckdb_available()
     database_path.parent.mkdir(parents=True, exist_ok=True)
     conn = duckdb.connect(str(database_path))
-    conn.execute("create schema if not exists bronze")
-    conn.execute(
-        """
-        create table if not exists bronze.steam_reviews_raw (
-            appid text,
-            recommendationid text,
-            updated_at timestamp,
-            ingested_at timestamp,
-            load_id text,
-            hash_payload text,
-            cursor text,
-            payload json
+    try:
+        conn.execute("create schema if not exists bronze")
+        conn.execute(
+            """
+            create table if not exists bronze.steam_reviews_raw (
+                appid text,
+                recommendationid text,
+                updated_at timestamp,
+                ingested_at timestamp,
+                load_id text,
+                hash_payload text,
+                cursor text,
+                payload json
+            )
+            """
         )
-        """
-    )
-    conn.execute(
-        """
-        create table if not exists bronze.load_watermarks (
-            appid text,
-            load_id text,
-            cursor text,
-            max_updated_at timestamp,
-            recorded_at timestamp
+        conn.execute(
+            """
+            create table if not exists bronze.load_watermarks (
+                appid text,
+                load_id text,
+                cursor text,
+                max_updated_at timestamp,
+                recorded_at timestamp
+            )
+            """
         )
-        """
-    )
-    return conn
+    finally:
+        conn.close()
 
 
 def compute_hash(payload: dict[str, object]) -> str:
@@ -259,21 +275,22 @@ def ingest_reviews(
     *,
     client: SteamReviewsClient,
     app_id: str,
-    args: argparse.Namespace,
+    config: PipelineConfig,
     load_id: str,
     ingested_at: datetime,
     conn: Optional["duckdb.DuckDBPyConnection"],
     schema: object,
+    logger: Any,
 ) -> Watermark:
     """Fetch reviews for a single app, persist results, and emit a watermark."""
     timestamp = ingested_at.strftime("%Y%m%dT%H%M%SZ")
-    output_path = args.output_dir / f"steam_reviews_{app_id}_{timestamp}.jsonl"
+    output_path = config.output_dir / f"steam_reviews_{app_id}_{timestamp}.jsonl"
     review_iterable = client.iter_reviews(
         app_id,
-        language=args.language,
-        review_type=args.review_type,
-        purchase_type=args.purchase_type,
-        max_pages=args.max_pages,
+        language=config.language,
+        review_type=config.review_type,
+        purchase_type=config.purchase_type,
+        max_pages=config.max_pages,
         schema=schema,
     )
 
@@ -291,14 +308,6 @@ def ingest_reviews(
             if conn is not None:
                 insert_into_bronze(conn, review=review, load_id=load_id, ingested_at=ingested_at)
 
-    LOGGER.info(
-        "steam.reviews_written",
-        app_id=str(app_id),
-        output=str(output_path),
-        review_count=count,
-        load_id=load_id,
-    )
-
     watermark = Watermark(
         app_id=str(app_id),
         last_cursor=last_cursor,
@@ -308,38 +317,100 @@ def ingest_reviews(
     )
     if conn is not None:
         record_watermark(conn, watermark)
+
+    logger.info(
+        "steam.reviews_written",
+        app_id=str(app_id),
+        output=str(output_path.resolve()),
+        review_count=count,
+        load_id=load_id,
+    )
     return watermark
 
 
-def run() -> None:
-    """Execute the end-to-end Steam reviews ingestion proof of concept."""
-    args = parse_args()
-    args.output_dir.mkdir(parents=True, exist_ok=True)
+def run_dbt(
+    project_dir: Path,
+    profiles_dir: Path | None,
+    *,
+    logger: Any,
+) -> None:
+    """Invoke ``dbt build`` to materialize the medallion models."""
+    command = ["dbt", "build", "--project-dir", str(project_dir)]
+    if profiles_dir is not None:
+        command += ["--profiles-dir", str(profiles_dir)]
 
-    ingested_at = datetime.now(tz=timezone.utc)
-    load_id = ingested_at.strftime("%Y%m%dT%H%M%S")
-    conn: Optional["duckdb.DuckDBPyConnection"] = None
-    if args.warehouse_path:
-        conn = prepare_bronze_storage(args.warehouse_path)
+    logger.info("steam.dbt_build.start", command=" ".join(command))
+    try:
+        subprocess.run(command, check=True)
+    except FileNotFoundError as exc:  # pragma: no cover - defensive
+        raise RuntimeError(
+            "dbt executable not found. Ensure dbt-duckdb is installed in your environment."
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError("dbt build failed") from exc
+    logger.info("steam.dbt_build.complete")
 
+
+@task
+def initialize_run(config: PipelineConfig) -> None:
+    """Ensure local directories and warehouse tables exist before ingestion."""
+
+    logger = get_run_logger()
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(
+        "steam.output.prepared",
+        output_dir=str(config.output_dir.resolve()),
+    )
+    if config.warehouse_path is not None:
+        prepare_bronze_storage(config.warehouse_path)
+        logger.info(
+            "steam.warehouse.prepared",
+            warehouse=str(config.warehouse_path.resolve()),
+        )
+
+
+@task
+def ingest_app_reviews(
+    app_id: str,
+    config: PipelineConfig,
+    load_id: str,
+    ingested_at: datetime,
+) -> Watermark:
+    """Fetch reviews for a single app ID and persist them to disk and DuckDB."""
+
+    logger = get_run_logger()
     settings = SteamSettings()
-    watermarks: list[Watermark] = []
-    with SteamReviewsClient(settings=settings) as client:
-        schema = client.build_review_schema()
-        for app_id in args.app_ids:
+    conn: Optional["duckdb.DuckDBPyConnection"] = None
+    try:
+        if config.warehouse_path is not None:
+            ensure_duckdb_available()
+            conn = duckdb.connect(str(config.warehouse_path))
+
+        with SteamReviewsClient(settings=settings) as client:
+            schema = client.build_review_schema()
             watermark = ingest_reviews(
                 client=client,
                 app_id=str(app_id),
-                args=args,
+                config=config,
                 load_id=load_id,
                 ingested_at=ingested_at,
                 conn=conn,
                 schema=schema,
+                logger=logger,
             )
-            watermarks.append(watermark)
+        return watermark
+    finally:
+        if conn is not None:
+            conn.close()
 
+
+@task
+def log_watermarks(watermarks: list[Watermark]) -> None:
+    """Emit structured logs for recorded watermarks."""
+
+    logger = get_run_logger()
     for watermark in watermarks:
-        LOGGER.info(
+        logger.info(
             "steam.ingest_watermark",
             app_id=watermark.app_id,
             load_id=watermark.load_id,
@@ -349,32 +420,84 @@ def run() -> None:
             ),
         )
 
-    if conn is not None:
-        conn.close()
 
-    if args.document_modeling:
-        LOGGER.info("steam.medallion_overview", message=MEDALLION_MODELING_OVERVIEW)
+@task
+def document_modeling_overview() -> None:
+    """Log the medallion modeling overview."""
 
-    if args.run_dbt:
-        run_dbt(args.dbt_project_dir, args.dbt_profiles_dir)
+    logger = get_run_logger()
+    logger.info("steam.medallion_overview", message=MEDALLION_MODELING_OVERVIEW)
 
 
-def run_dbt(project_dir: Path, profiles_dir: Path | None) -> None:
-    """Invoke ``dbt build`` to materialize the medallion models."""
-    command = ["dbt", "build", "--project-dir", str(project_dir)]
-    if profiles_dir is not None:
-        command += ["--profiles-dir", str(profiles_dir)]
+@task
+def trigger_dbt(project_dir: Path, profiles_dir: Path | None) -> None:
+    """Kick off dbt build via a Prefect task."""
 
-    LOGGER.info("steam.dbt_build.start", command=" ".join(command))
-    try:
-        subprocess.run(command, check=True)
-    except FileNotFoundError as exc:  # pragma: no cover - defensive
-        raise RuntimeError(
-            "dbt executable not found. Ensure dbt-duckdb is installed in your environment."
-        ) from exc
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError("dbt build failed") from exc
-    LOGGER.info("steam.dbt_build.complete")
+    logger = get_run_logger()
+    run_dbt(project_dir, profiles_dir, logger=logger)
+
+
+@flow(name="steam-reviews-poc")
+def steam_reviews_flow(config: PipelineConfig) -> list[Watermark]:
+    """Prefect flow that orchestrates the Steam review ingestion proof of concept."""
+
+    logger = get_run_logger()
+    initialize_run(config)
+
+    ingested_at = datetime.now(tz=timezone.utc)
+    load_id = ingested_at.strftime("%Y%m%dT%H%M%S")
+    logger.info(
+        "steam.flow.start",
+        load_id=load_id,
+        app_count=len(config.app_ids),
+    )
+
+    watermarks: list[Watermark] = []
+    for app_id in config.app_ids:
+        watermark = ingest_app_reviews(
+            app_id=str(app_id),
+            config=config,
+            load_id=load_id,
+            ingested_at=ingested_at,
+        )
+        watermarks.append(watermark)
+
+    log_watermarks(watermarks)
+
+    if config.document_modeling:
+        document_modeling_overview()
+
+    if config.run_dbt:
+        trigger_dbt(config.dbt_project_dir, config.dbt_profiles_dir)
+
+    logger.info("steam.flow.complete", load_id=load_id)
+    return watermarks
+
+
+def build_config(args: argparse.Namespace) -> PipelineConfig:
+    """Translate parsed CLI arguments into a Prefect-friendly configuration."""
+
+    return PipelineConfig(
+        app_ids=[str(app_id) for app_id in args.app_ids],
+        output_dir=args.output_dir,
+        max_pages=args.max_pages,
+        language=args.language,
+        review_type=args.review_type,
+        purchase_type=args.purchase_type,
+        run_dbt=args.run_dbt,
+        warehouse_path=args.warehouse_path,
+        dbt_project_dir=args.dbt_project_dir,
+        dbt_profiles_dir=args.dbt_profiles_dir,
+        document_modeling=args.document_modeling,
+    )
+
+
+def run() -> None:
+    """Execute the Prefect flow using CLI-sourced configuration."""
+
+    args = parse_args()
+    config = build_config(args)
+    steam_reviews_flow(config)
 
 
 if __name__ == "__main__":
