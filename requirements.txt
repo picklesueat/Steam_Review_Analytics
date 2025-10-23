@@ -5,6 +5,7 @@ pydantic-settings
 python-dotenv
 structlog
 jsonschema
+prefect
 
 # Data & modeling (future)
 duckdb
